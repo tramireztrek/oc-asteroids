@@ -29,6 +29,64 @@ const dist  = (a, b)   => Math.hypot(a.x - b.x, a.y - b.y);
 const rand  = (min, max) => min + Math.random() * (max - min);
 const randInt = (min, max) => Math.floor(rand(min, max + 1));
 
+// ── Skins de la nave ─────────────────────────────────────────────────────────
+// Cada skin define: nombre, color de trazo, silueta (verts) y color de la llama.
+// La silueta apunta hacia +X (nariz en x=20) y equivale al radio de colisión (12).
+const SKINS = [
+  {
+    name: 'CLASICA',
+    color: '#fff',
+    llama: 'rgba(255, 130, 0, 0.85)',
+    verts: [ [ 20, 0], [-12, -9], [ -7, 0], [-12, 9] ],
+  },
+  {
+    name: 'EXPLORER',
+    color: '#43d9ff',
+    llama: 'rgba(80, 190, 255, 0.85)',
+    verts: [ [ 20, 0], [ 12, -6], [  6, -10], [-12, -10], [-12, 10], [  6, 10], [ 12, 6] ],
+  },
+  {
+    name: 'DART',
+    color: '#62ff7a',
+    llama: 'rgba(90, 255, 140, 0.85)',
+    verts: [ [ 22, 0], [ -4, -5], [-14, -10], [-10,  0], [-14, 10], [ -4, 5] ],
+  },
+  {
+    name: 'TITAN',
+    color: '#ff5cc8',
+    llama: 'rgba(255, 90, 190, 0.85)',
+    verts: [ [ 18, 0], [  8, -10], [-10, -11], [-14,  0], [-10, 11], [  8, 10] ],
+  },
+  {
+    name: 'GHOST',
+    color: 'rgba(207, 216, 255, 0.55)',
+    hud: '#cfd8ff',
+    llama: 'rgba(207, 216, 255, 0.6)',
+    verts: [ [ 20, 0], [-10, -9], [ -6, -4], [ -6, 4], [-10, 9] ],
+  },
+];
+
+// Skin activa: se recuerda entre sesiones en localStorage (si está disponible)
+let skinIndex = 0;
+const SKIN_KEY = 'asteroids.skin';
+
+try {
+  const saved = localStorage.getItem(SKIN_KEY);
+  if (saved !== null) {
+    const i = parseInt(saved, 10);
+    if (i >= 0 && i < SKINS.length) skinIndex = i;
+  }
+} catch (e) { /* localStorage no disponible: usar la skin por defecto */ }
+
+function cycleSkin() {
+  skinIndex = (skinIndex + 1) % SKINS.length;
+  try { localStorage.setItem(SKIN_KEY, String(skinIndex)); } catch (e) { /* ignorar */ }
+}
+
+function currentSkin() {
+  return SKINS[skinIndex];
+}
+
 // ── Bullet ────────────────────────────────────────────────────────────────────
 class Bullet {
   constructor(x, y, angle) {
@@ -278,30 +336,31 @@ class Ship {
     // Parpadeo durante invencibilidad de reaparición
     if (this.invincible > 0 && Math.floor(this.invincible * 8) % 2 === 0) return;
 
+    const skin  = currentSkin();
+    const boosted = this.speedBoostTimer > 0;
+
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.angle);
-    const boosted    = this.speedBoostTimer > 0;
-    ctx.strokeStyle = boosted ? '#ffb020' : '#fff';
+    ctx.strokeStyle = boosted ? '#ffb020' : skin.color;
     ctx.lineWidth   = boosted ? 2 : 1.5;
     ctx.lineJoin    = 'round';
 
-    // Silueta clásica: triángulo con muesca trasera
+    // Silueta según la skin activa
     ctx.beginPath();
-    ctx.moveTo( 20,  0);   // nariz
-    ctx.lineTo(-12, -9);   // ala izquierda
-    ctx.lineTo( -7,  0);   // muesca trasera
-    ctx.lineTo(-12,  9);   // ala derecha
+    ctx.moveTo(skin.verts[0][0], skin.verts[0][1]);
+    for (let i = 1; i < skin.verts.length; i++)
+      ctx.lineTo(skin.verts[i][0], skin.verts[i][1]);
     ctx.closePath();
     ctx.stroke();
 
-    // Llama del propulsor
+    // Llama del propulsor (color según skin, naranja durante el boost)
     if (this.thrusting && Math.random() > 0.35) {
       ctx.beginPath();
       ctx.moveTo(-8, -4);
       ctx.lineTo(-8 - rand(6, 14), 0);
       ctx.lineTo(-8,  4);
-      ctx.strokeStyle = boosted ? 'rgba(255, 170, 60, 0.95)' : 'rgba(255, 130, 0, 0.85)';
+      ctx.strokeStyle = boosted ? 'rgba(255, 170, 60, 0.95)' : skin.llama;
       ctx.stroke();
     }
 
@@ -469,6 +528,9 @@ function update(dt) {
     return;
   }
 
+  // Cambiar de skin
+  if (pressed('KeyC')) cycleSkin();
+
   // Disparar
   if (pressed('Space')) {
     bullets.push(...ship.tryShoot());
@@ -569,6 +631,12 @@ function drawHUD() {
     ctx.textAlign = 'left';
     ctx.fillText(`VELOCIDAD x2  ${ship.speedBoostTimer.toFixed(1)}s`, 14, 48);
   }
+
+  // Skin activa
+  const skin = currentSkin();
+  ctx.fillStyle = skin.hud || skin.color;
+  ctx.textAlign = 'left';
+  ctx.fillText(`SKIN ${skin.name}`, 14, 70);
 }
 
 function drawOverlay(title, sub) {
