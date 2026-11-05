@@ -32,6 +32,8 @@ const randInt = (min, max) => Math.floor(rand(min, max + 1));
 // ── Skins de la nave ─────────────────────────────────────────────────────────
 // Cada skin define: nombre, color de trazo, silueta (verts) y color de la llama.
 // La silueta apunta hacia +X (nariz en x=20) y equivale al radio de colisión (12).
+// `scale` amplía la nave (silueta, colisión, nariz y escudo) y `ptsMult`
+// multiplica los puntos que obtiene el jugador al usar esa skin.
 const SKINS = [
   {
     name: 'CLASICA',
@@ -63,6 +65,16 @@ const SKINS = [
     hud: '#cfd8ff',
     llama: 'rgba(207, 216, 255, 0.6)',
     verts: [ [ 20, 0], [-10, -9], [ -6, -4], [ -6, 4], [-10, 9] ],
+  },
+  {
+    // Nave morada: dos veces más grande que la original y doble de puntos
+    name: 'GIGANTE',
+    color: '#b026ff',
+    hud: '#c77dff',
+    llama: 'rgba(176, 38, 255, 0.85)',
+    scale: 2,
+    ptsMult: 2,
+    verts: [ [ 20, 0], [-12, -9], [ -7, 0], [-12, 9] ],
   },
 ];
 
@@ -303,13 +315,15 @@ class PowerUp {
 class Ship {
   constructor() { this.reset(); }
 
+  // Radio de colisión según la skin activa (GIGANTE mide el doble)
+  get radius() { return 12 * (currentSkin().scale || 1); }
+
   reset() {
     this.x      = W / 2;
     this.y      = H / 2;
     this.angle  = -Math.PI / 2;
     this.vx     = 0;
     this.vy     = 0;
-    this.radius = 12;
     this.thrusting     = false;
     this.invincible    = 3;
     this.shootCooldown = 0;
@@ -348,7 +362,7 @@ class Ship {
   tryShoot() {
     if (this.shootCooldown > 0 || this.dead) return [];
     this.shootCooldown = 0.2;
-    const NOSE = 21;
+    const NOSE = 21 * (currentSkin().scale || 1);
     const ox = this.x + Math.cos(this.angle) * NOSE;
     const oy = this.y + Math.sin(this.angle) * NOSE;
     // Triple disparo: abanico corto de 3 balas
@@ -367,14 +381,16 @@ class Ship {
     if (this.invincible > 0 && Math.floor(this.invincible * 8) % 2 === 0) return;
 
     const skin  = currentSkin();
+    const scale = skin.scale || 1;
     const boosted = this.speedBoostTimer > 0;
 
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.angle);
+    ctx.scale(scale, scale);
     const tripled = this.tripleTimer > 0;
     ctx.strokeStyle = tripled ? '#6ad4ff' : (boosted ? '#ffb020' : skin.color);
-    ctx.lineWidth   = (tripled || boosted) ? 2 : 1.5;
+    ctx.lineWidth   = ((tripled || boosted) ? 2 : 1.5) / scale;
     ctx.lineJoin    = 'round';
 
     // Anillo del escudo (parpadea cuando queda 1 sola carga)
@@ -384,7 +400,7 @@ class Ship {
         const t = performance.now() / 1000;
         ctx.strokeStyle = SHIELD_COLOR;
         ctx.globalAlpha = last ? 0.45 : 0.8;
-        ctx.lineWidth   = 1.5;
+        ctx.lineWidth   = 1.5 / scale;
         ctx.beginPath();
         ctx.arc(0, 0, SHIELD_RING_RADIUS + Math.sin(t * 4) * 1.5, 0, Math.PI * 2);
         ctx.stroke();
@@ -565,7 +581,8 @@ function killShip() {
 // Destruir un asteroide (por bala o por bloqueo del escudo): punto, explosión, split y drops
 function destroyAsteroid(a) {
   a.dead = true;
-  score += a instanceof ShootingStar ? STAR_POINTS : POINTS[a.size];
+  const mult = currentSkin().ptsMult || 1;
+  score += (a instanceof ShootingStar ? STAR_POINTS : POINTS[a.size]) * mult;
   if (a instanceof ShootingStar) {
     explodeStar(a.x, a.y);
   } else {
@@ -722,6 +739,10 @@ function drawHUD() {
   // Skin activa
   const skin = currentSkin();
   ctx.fillStyle = skin.hud || skin.color;
+  if (skin.ptsMult > 1) {
+    ctx.fillText(`PUNTOS x${skin.ptsMult}`, 14, rowY);
+    rowY += 22;
+  }
   ctx.fillText(`SKIN ${skin.name}`, 14, rowY);
 }
 
