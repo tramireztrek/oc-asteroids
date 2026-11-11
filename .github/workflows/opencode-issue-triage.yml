@@ -38,6 +38,12 @@ jobs:
                - **Rama actual:** <rama por defecto del repositorio>
                - **Commit actual:** <SHA corto del commit más reciente de la rama por defecto>
 
+               Debajo de esa lista, dentro de la misma sección, añade este subapartado:
+
+               ### ✨ Descripción mejorada
+
+               - **Descripción mejorada:** <reescribe de forma clara, concisa y estructurada lo que la persona reporta en el título y el cuerpo original (qué ocurre, qué se esperaba, pasos para reproducirlo si se pueden deducir). Máximo ~5 frases. Si faltan datos, indícalo con "No se especifica en el issue".>
+
                Formatea la sección en markdown limpio con viñetas.
 
             3. Etiquetas: primero asegúrate de que existan estas etiquetas en el repo (créalas con `gh label create ... --force` si faltan, usando tu token de GitHub):
