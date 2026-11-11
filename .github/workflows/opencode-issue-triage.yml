@@ -1,0 +1,57 @@
+name: Issue Triage
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run OpenCode
+        uses: anomalyco/opencode/github@latest
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+        with:
+          model: opencode/mimo-v2.6-flash-free
+          prompt: |
+            Se acaba de abrir un issue nuevo en este repositorio (un clon del juego Asteroids en HTML5 Canvas y JavaScript vanilla, UI en español). Aplica triage con estas reglas EXACTAS:
+
+            1. TEXTUALIDAD ABSOLUTA: No reescribas, resumas, corrijas, traduzcas ni elimines NADA de lo que la persona escribió. El título y el cuerpo originales deben quedar intactos, tal cual. Solo tienes permitido AÑADIR contenido nuevo al final.
+
+            2. Añade al FINAL del cuerpo del issue, separado del texto original por una línea `---`, esta sección con los metadatos reales del evento (usa gh o la API de GitHub para obtenerlos; NO inventes valores):
+
+               ## 📋 Información de revisión
+
+               - **Fecha:** <fecha y hora en UTC del momento de creación>
+               - **Autor:** @<usuario que abrió el issue>
+               - **Issue:** #<número> (<enlace al issue>)
+               - **Rama actual:** <rama por defecto del repositorio>
+               - **Commit actual:** <SHA corto del commit más reciente de la rama por defecto>
+
+               Formatea la sección en markdown limpio con viñetas.
+
+            3. Etiquetas: primero asegúrate de que existan estas etiquetas en el repo (créalas con `gh label create ... --force` si faltan, usando tu token de GitHub):
+               - `needs-triage` color FBCA04 "Pendiente de revisión"
+               - `bug` color D73A4A "Algo no funciona como se espera"
+               - `enhancement` color A2EEEF "Mejora o función nueva"
+               - `question` color D876E3 "Duda o pregunta"
+               - `documentation` color 0075CA "Documentación y README"
+
+               Añade SIEMPRE la etiqueta `needs-triage`. Además analiza el título y el cuerpo y añade las etiquetas que apliquen (solo añadir, NUNCA quitar ni cambiar las existentes):
+               - `bug` si describe un error o fallo (keywords: error, falla, bug, no funciona, roto, crash, pantalla en negro, glitch, exception, stacktrace).
+               - `enhancement` si pide una mejora o función nueva (keywords: mejora, mejorar, feature, función nueva, añadir, agregar, sugerencia, propongo, sería genial).
+               - `question` si es una pregunta o duda (keywords: pregunta, duda, cómo, como puedo, es posible, ¿).
+               - `documentation` si es sobre documentación o README (keywords: docs, documentación, readme, instrucciones).
+               Aplica todas las que apliquen, incluso varias a la vez.
+
+            4. NO publiques ningún comentario en el issue. Solo edita el cuerpo y las etiquetas.
